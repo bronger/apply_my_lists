@@ -43,7 +43,7 @@ func readDomains() error {
 	scanner.Split(bufio.ScanLines)
 	var numberDomains int
 	for scanner.Scan() {
-		domain := scanner.Text()
+		domain := "." + scanner.Text()
 		numberDomains++
 		components := strings.Split(domain, ".")
 		length := len(components)
@@ -91,7 +91,7 @@ func main() {
 	go func() {
 		defer wgCollect.Done()
 		for domain := range minimal {
-			minimalSet[domain] = true
+			minimalSet[domain[1:]] = true
 		}
 	}()
 	wg.Wait()
