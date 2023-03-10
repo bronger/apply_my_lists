@@ -15,6 +15,12 @@ import (
 func init() {
 	opts := slog.HandlerOptions{
 		Level: slog.LevelInfo,
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+			if a.Key == "time" {
+				return slog.String(a.Key, a.Value.Time().Format("2006/01/02 15:04:05"))
+			}
+			return a
+		},
 	}
 	textHandler := opts.NewTextHandler(os.Stderr)
 	logger := slog.New(textHandler)
