@@ -41,8 +41,10 @@ func readDomains() error {
 	}
 	scanner := bufio.NewScanner(f)
 	scanner.Split(bufio.ScanLines)
+	var numberDomains int
 	for scanner.Scan() {
 		domain := scanner.Text()
+		numberDomains++
 		components := strings.Split(domain, ".")
 		length := len(components)
 		tld := components[length-2] + "." + components[length-1]
@@ -54,6 +56,7 @@ func readDomains() error {
 	for tld, subdomains := range domainsRaw {
 		domains[tld] = maps.Keys(subdomains)
 	}
+	slog.Info("Finished reading domains", "number", numberDomains, "numberTLDs", len(domains))
 	return nil
 }
 
@@ -61,6 +64,7 @@ func checkDomain(subdomains []string, domain string, minimal chan<- string, wg *
 	defer wg.Done()
 	for _, otherDomain := range subdomains {
 		if domain != otherDomain && strings.HasSuffix(domain, otherDomain) {
+			slog.Debug("Domain is shadowed", "domain", domain, "by", otherDomain)
 			return
 		}
 	}
@@ -72,7 +76,6 @@ func main() {
 	if err := readDomains(); err != nil {
 		exitOnError(err, "Could not read domains")
 	}
-	slog.Info("End reading domains", "numberTLDs", len(domains))
 	minimal := make(chan string)
 	var wg sync.WaitGroup
 	for tld := range domains {
@@ -94,6 +97,6 @@ func main() {
 	wg.Wait()
 	close(minimal)
 	wgCollect.Wait()
-	fmt.Println(len(domains), len(minimalSet))
+	slog.Info("Minimal domains collected", "number", len(minimalSet))
 	slog.Info("Finished")
 }
