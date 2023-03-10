@@ -58,15 +58,6 @@ func checkDomain(subdomains []string, domain string, minimal chan<- string, wg *
 	minimal <- domain
 }
 
-func checkSDs(tld string, minimal chan<- string, wg *sync.WaitGroup) {
-	defer wg.Done()
-	subdomains := domains[tld]
-	for _, domain := range subdomains {
-		wg.Add(1)
-		go checkDomain(subdomains, domain, minimal, wg)
-	}
-}
-
 func main() {
 	slog.Info("Reading domains")
 	if err := readDomains(); err != nil {
@@ -76,8 +67,11 @@ func main() {
 	minimal := make(chan string)
 	var wg sync.WaitGroup
 	for tld := range domains {
-		wg.Add(1)
-		go checkSDs(tld, minimal, &wg)
+		subdomains := domains[tld]
+		for _, domain := range subdomains {
+			wg.Add(1)
+			go checkDomain(subdomains, domain, minimal, &wg)
+		}
 	}
 	minimalSet := make(map[string]bool)
 	var wgCollect sync.WaitGroup
