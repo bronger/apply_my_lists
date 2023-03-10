@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	pkg_errors "github.com/pkg/errors"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
 )
 
@@ -19,11 +20,12 @@ func exitOnError(err error, msg string) {
 	os.Exit(1)
 }
 
-var domains = make(map[string]map[string]bool)
+var domains = make(map[string][]string)
 
 const domFilepath = "/tmp/hosts-blacklist"
 
 func readDomains() error {
+	domainsRaw := make(map[string]map[string]bool)
 	f, err := os.Open(domFilepath)
 	if err != nil {
 		return pkg_errors.Errorf("Could not open domains file “%v”", domFilepath)
@@ -35,17 +37,20 @@ func readDomains() error {
 		components := strings.Split(domain, ".")
 		length := len(components)
 		tld := components[length-2] + "." + components[length-1]
-		if _, exists := domains[tld]; !exists {
-			domains[tld] = make(map[string]bool)
+		if _, exists := domainsRaw[tld]; !exists {
+			domainsRaw[tld] = make(map[string]bool)
 		}
-		domains[tld][domain] = true
+		domainsRaw[tld][domain] = true
+	}
+	for tld, subdomains := range domainsRaw {
+		domains[tld] = maps.Keys(subdomains)
 	}
 	return nil
 }
 
-func checkDomain(subdomains map[string]bool, domain string, minimal chan<- string, wg *sync.WaitGroup) {
+func checkDomain(subdomains []string, domain string, minimal chan<- string, wg *sync.WaitGroup) {
 	defer wg.Done()
-	for otherDomain := range subdomains {
+	for _, otherDomain := range subdomains {
 		if domain != otherDomain && strings.HasSuffix(domain, otherDomain) {
 			break
 		}
@@ -56,7 +61,7 @@ func checkDomain(subdomains map[string]bool, domain string, minimal chan<- strin
 func checkSDs(tld string, minimal chan<- string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	subdomains := domains[tld]
-	for domain := range subdomains {
+	for _, domain := range subdomains {
 		wg.Add(1)
 		go checkDomain(subdomains, domain, minimal, wg)
 	}
