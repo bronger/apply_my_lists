@@ -12,6 +12,15 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+func init() {
+	opts := slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}
+	textHandler := opts.NewTextHandler(os.Stderr)
+	logger := slog.New(textHandler)
+	slog.SetDefault(logger)
+}
+
 func exitOnError(err error, msg string) {
 	if err != nil {
 		slog.Error(msg, err)
