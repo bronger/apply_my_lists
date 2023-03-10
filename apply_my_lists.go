@@ -47,15 +47,21 @@ func readDomains() error {
 	return nil
 }
 
-func check(subdomains map[string]bool, minimal chan<- string, wg *sync.WaitGroup) {
+func checkDomain(subdomains map[string]bool, domain string, minimal chan<- string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for otherDomain := range subdomains {
+		if domain != otherDomain && strings.HasSuffix(domain, otherDomain) {
+			break
+		}
+	}
+	minimal <- domain
+}
+
+func checkSDs(subdomains map[string]bool, minimal chan<- string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for domain := range subdomains {
-		for otherDomain := range subdomains {
-			if domain != otherDomain && strings.HasSuffix(domain, otherDomain) {
-				break
-			}
-		}
-		minimal <- domain
+		wg.Add(1)
+		go checkDomain(subdomains, domain, minimal, wg)
 	}
 }
 
@@ -69,7 +75,7 @@ func main() {
 	var wg sync.WaitGroup
 	for _, subdomains := range domains {
 		wg.Add(1)
-		go check(subdomains, minimal, &wg)
+		go checkSDs(subdomains, minimal, &wg)
 	}
 	minimalSet := make(map[string]bool)
 	var wgCollect sync.WaitGroup
