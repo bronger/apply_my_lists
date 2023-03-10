@@ -19,12 +19,11 @@ func exitOnError(err error, msg string) {
 	os.Exit(1)
 }
 
-var domains []map[string]bool
+var domains = make(map[string]map[string]bool)
 
 const domFilepath = "/tmp/hosts-blacklist"
 
 func readDomains() error {
-	domainsMap := make(map[string]map[string]bool)
 	f, err := os.Open(domFilepath)
 	if err != nil {
 		return pkg_errors.Errorf("Could not open domains file “%v”", domFilepath)
@@ -36,13 +35,10 @@ func readDomains() error {
 		components := strings.Split(domain, ".")
 		length := len(components)
 		tld := components[length-2] + "." + components[length-1]
-		if _, exists := domainsMap[tld]; !exists {
-			domainsMap[tld] = make(map[string]bool)
+		if _, exists := domains[tld]; !exists {
+			domains[tld] = make(map[string]bool)
 		}
-		domainsMap[tld][domain] = true
-	}
-	for _, subdomains := range domainsMap {
-		domains = append(domains, subdomains)
+		domains[tld][domain] = true
 	}
 	return nil
 }
@@ -57,8 +53,9 @@ func checkDomain(subdomains map[string]bool, domain string, minimal chan<- strin
 	minimal <- domain
 }
 
-func checkSDs(subdomains map[string]bool, minimal chan<- string, wg *sync.WaitGroup) {
+func checkSDs(tld string, minimal chan<- string, wg *sync.WaitGroup) {
 	defer wg.Done()
+	subdomains := domains[tld]
 	for domain := range subdomains {
 		wg.Add(1)
 		go checkDomain(subdomains, domain, minimal, wg)
@@ -73,9 +70,9 @@ func main() {
 	slog.Info("End reading domains", "numberTLDs", len(domains))
 	minimal := make(chan string)
 	var wg sync.WaitGroup
-	for _, subdomains := range domains {
+	for tld := range domains {
 		wg.Add(1)
-		go checkSDs(subdomains, minimal, &wg)
+		go checkSDs(tld, minimal, &wg)
 	}
 	minimalSet := make(map[string]bool)
 	var wgCollect sync.WaitGroup
