@@ -61,7 +61,7 @@ func checkDomain(subdomains []string, domain string, minimal chan<- string, wg *
 	defer wg.Done()
 	for _, otherDomain := range subdomains {
 		if domain != otherDomain && strings.HasSuffix(domain, otherDomain) {
-			break
+			return
 		}
 	}
 	minimal <- domain
