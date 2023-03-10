@@ -40,6 +40,7 @@ var domains = make(map[string][]string)
 const domFilepath = "/tmp/hosts-blacklist"
 
 func readDomains() error {
+	slog.Info("Reading domains")
 	domainsRaw := make(map[string]map[string]bool)
 	f, err := os.Open(domFilepath)
 	if err != nil {
@@ -78,7 +79,6 @@ func checkDomain(subdomains []string, domain string, minimal chan<- string, wg *
 }
 
 func main() {
-	slog.Info("Reading domains")
 	if err := readDomains(); err != nil {
 		exitOnError(err, "Could not read domains")
 	}
