@@ -95,10 +95,9 @@ func readDomains() (domainsRaw map[string]map[string]bool, err error) {
 	return
 }
 
-func cookDomains(domainsRaw map[string]map[string]bool) (domains map[string][]string) {
-	domains = make(map[string][]string)
-	for tld, subdomains := range domainsRaw {
-		domains[tld] = maps.Keys(subdomains)
+func cookDomains(domainsRaw map[string]map[string]bool) (domains [][]string) {
+	for _, subdomains := range domainsRaw {
+		domains = append(domains, maps.Keys(subdomains))
 	}
 	return
 }
@@ -128,7 +127,7 @@ func applyBlacklist(path string, domainsRaw map[string]map[string]bool) error {
 }
 
 func main() {
-	domains := make(map[string][]string)
+	var domains [][]string
 	if domainsRaw, err := readDomains(); err != nil {
 		exitOnError(err, "Could not read domains")
 	} else {
@@ -137,8 +136,7 @@ func main() {
 	}
 	minimal := make(chan string)
 	var wg sync.WaitGroup
-	for tld := range domains {
-		subdomains := domains[tld]
+	for _, subdomains := range domains {
 		for _, domain := range subdomains {
 			wg.Add(1)
 			go checkDomain(subdomains, domain, minimal, &wg)
