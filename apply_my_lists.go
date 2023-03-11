@@ -11,6 +11,7 @@ import (
 	pkg_errors "github.com/pkg/errors"
 	"go4.org/must"
 	"golang.org/x/exp/maps"
+	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
 )
 
@@ -97,14 +98,22 @@ func readDomains() (domainsRaw map[string]map[string]bool, err error) {
 
 func cookDomains(domainsRaw map[string]map[string]bool) (domains [][]string) {
 	for _, subdomains := range domainsRaw {
-		domains = append(domains, maps.Keys(subdomains))
+		cookedSDs := maps.Keys(subdomains)
+		slices.SortFunc(cookedSDs, func(a, b string) bool {
+			return len(a) < len(b)
+		})
+		domains = append(domains, cookedSDs)
 	}
 	return
 }
 
 func checkDomain(subdomains []string, domain string, minimal chan<- string, wg *sync.WaitGroup) {
 	defer wg.Done()
+	lenDomain := len(domain)
 	for _, otherDomain := range subdomains {
+		if len(otherDomain) > lenDomain {
+			break
+		}
 		if strings.HasSuffix(domain, otherDomain) && domain != otherDomain {
 			return
 		}
