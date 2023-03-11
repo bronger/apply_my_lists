@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -70,6 +71,8 @@ func getTLD(domain string) string {
 	return components[length-2] + "." + components[length-1]
 }
 
+var hostRegexp = regexp.MustCompile(`0\.0\.0\.0 (.*)`)
+
 func readDomains() (domainsRaw map[string]map[string]bool, err error) {
 	domainsRaw = make(map[string]map[string]bool)
 	slog.Info("Reading domains")
@@ -81,7 +84,11 @@ func readDomains() (domainsRaw map[string]map[string]bool, err error) {
 	scanner.Split(bufio.ScanLines)
 	var numberDomains int
 	for scanner.Scan() {
-		domain := "." + scanner.Text()
+		line := scanner.Text()
+		domain := "." + hostRegexp.FindStringSubmatch(line)[1]
+		if domain == "." {
+			return nil, pkg_errors.Errorf("Invalid line in domains file: “%s”", line)
+		}
 		numberDomains++
 		tld := getTLD(domain)
 		if _, exists := domainsRaw[tld]; !exists {
