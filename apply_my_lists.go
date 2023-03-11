@@ -191,8 +191,8 @@ func main() {
 	if domainsRaw, err := readDomains(); err != nil {
 		exitOnError(err, "Could not read domains")
 	} else {
-		applyBlacklist("my_blacklist", domainsRaw)
-		applyWhitelist("my_whitelist", domainsRaw)
+		applyBlacklist("/tmp/my_blacklist", domainsRaw)
+		applyWhitelist("/tmp/my_whitelist", domainsRaw)
 		domains = cookDomains(domainsRaw)
 	}
 	minimal := make(chan string)
@@ -201,7 +201,7 @@ func main() {
 	wgCollect.Add(1)
 	go func() {
 		defer wgCollect.Done()
-		f, err := os.Create("servers-blacklist")
+		f, err := os.Create("/etc/servers-blacklist")
 		exitOnError(err, "Error creating file “servers-blacklist”")
 		defer must.Close(f)
 		w := bufio.NewWriter(f)
