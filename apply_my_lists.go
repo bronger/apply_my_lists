@@ -106,7 +106,6 @@ func checkDomain(subdomains []string, domain string, minimal chan<- string, wg *
 	defer wg.Done()
 	for _, otherDomain := range subdomains {
 		if strings.HasSuffix(domain, otherDomain) && domain != otherDomain {
-			slog.Debug("Domain is shadowed", "domain", domain, "by", otherDomain)
 			return
 		}
 	}
