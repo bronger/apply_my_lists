@@ -136,8 +136,8 @@ func main() {
 	}
 	minimal := make(chan string)
 	var wgCollect sync.WaitGroup
-	wgCollect.Add(1)
 	var numberMinimal int
+	wgCollect.Add(1)
 	go func() {
 		defer wgCollect.Done()
 		f, err := os.Create("servers-blacklist")
