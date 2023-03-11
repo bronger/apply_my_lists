@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	pkg_errors "github.com/pkg/errors"
+	"go4.org/must"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slog"
 )
@@ -98,18 +99,25 @@ func main() {
 			go checkDomain(subdomains, domain, minimal, &wg)
 		}
 	}
-	minimalSet := make(map[string]bool)
 	var wgCollect sync.WaitGroup
 	wgCollect.Add(1)
+	var numberMinimal int
 	go func() {
 		defer wgCollect.Done()
+		f, err := os.Create("servers-blacklist")
+		exitOnError(err, "Error creating file “servers-blacklist”")
+		defer must.Close(f)
+		w := bufio.NewWriter(f)
+		defer must.Do(w.Flush)
 		for domain := range minimal {
-			minimalSet[domain[1:]] = true
+			numberMinimal++
+			_, err := w.WriteString(fmt.Sprintf("%s\n", domain[1:]))
+			exitOnError(err, "Error writing to file “servers-blacklist”")
 		}
 	}()
 	wg.Wait()
 	close(minimal)
 	wgCollect.Wait()
-	slog.Info("Minimal domains collected", "number", len(minimalSet))
+	slog.Info("Minimal domains collected", "number", numberMinimal)
 	slog.Info("Finished")
 }
