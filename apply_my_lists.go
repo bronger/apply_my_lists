@@ -129,6 +129,9 @@ func applyBlacklist(path string, domainsRaw map[string]map[string]bool) error {
 	exitOnError(err, "Error while reading blacklist")
 	for _, domain := range blackDomains {
 		tld := getTLD(domain)
+		if _, exists := domainsRaw[tld]; !exists {
+			domainsRaw[tld] = make(map[string]bool)
+		}
 		domainsRaw[tld][domain] = true
 	}
 	return nil
