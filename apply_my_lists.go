@@ -122,7 +122,7 @@ func checkDomain(subdomains []string, domain string, minimal chan<- string, wg *
 }
 
 func applyBlacklist(path string, domainsRaw map[string]map[string]bool) error {
-	blackDomains, err := readList("my_blacklist")
+	blackDomains, err := readList(path)
 	if err != nil {
 		return fmt.Errorf("Error while reading blacklist: %w", err)
 	}
