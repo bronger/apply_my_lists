@@ -39,6 +39,12 @@ var domains = make(map[string][]string)
 
 const domFilepath = "/tmp/hosts-blacklist"
 
+func getTLD(domain string) string {
+	components := strings.Split(domain, ".")
+	length := len(components)
+	return components[length-2] + "." + components[length-1]
+}
+
 func readDomains() error {
 	slog.Info("Reading domains")
 	domainsRaw := make(map[string]map[string]bool)
@@ -52,9 +58,7 @@ func readDomains() error {
 	for scanner.Scan() {
 		domain := "." + scanner.Text()
 		numberDomains++
-		components := strings.Split(domain, ".")
-		length := len(components)
-		tld := components[length-2] + "." + components[length-1]
+		tld := getTLD(domain)
 		if _, exists := domainsRaw[tld]; !exists {
 			domainsRaw[tld] = make(map[string]bool)
 		}
