@@ -56,7 +56,7 @@ func readList(path string) (entries []string, err error) {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		entries = append(entries, line)
+		entries = append(entries, "."+line)
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, pkg_errors.Wrap(err, fmt.Sprintf("Error while reading list file “%v”", path))
