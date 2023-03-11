@@ -60,6 +60,9 @@ func readDomains() error {
 		}
 		domainsRaw[tld][domain] = true
 	}
+	if err := scanner.Err(); err != nil {
+		return pkg_errors.Wrap(err, fmt.Sprintf("Error while reading domains file “%v”", domFilepath))
+	}
 	for tld, subdomains := range domainsRaw {
 		domains[tld] = maps.Keys(subdomains)
 	}
