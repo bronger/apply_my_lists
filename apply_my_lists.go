@@ -38,7 +38,7 @@ func exitOnError(err error, msg string) {
 	}
 }
 
-const domFilepath = "/tmp/hosts-blacklist"
+const domFilepath = "/etc/hosts-blacklist"
 
 func readList(path string) (entries []string, err error) {
 	f, err := os.Open(path)
