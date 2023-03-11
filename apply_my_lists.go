@@ -135,13 +135,6 @@ func main() {
 		domains = cookDomains(domainsRaw)
 	}
 	minimal := make(chan string)
-	var wg sync.WaitGroup
-	for _, subdomains := range domains {
-		for _, domain := range subdomains {
-			wg.Add(1)
-			go checkDomain(subdomains, domain, minimal, &wg)
-		}
-	}
 	var wgCollect sync.WaitGroup
 	wgCollect.Add(1)
 	var numberMinimal int
@@ -158,6 +151,14 @@ func main() {
 			exitOnError(err, "Error writing to file “servers-blacklist”")
 		}
 	}()
+	var wg sync.WaitGroup
+	for _, subdomains := range domains {
+		for _, domain := range subdomains {
+			wg.Add(1)
+			go checkDomain(subdomains, domain, minimal, &wg)
+		}
+	}
+	slog.Info("Created all workers")
 	wg.Wait()
 	close(minimal)
 	wgCollect.Wait()
