@@ -32,8 +32,8 @@ func exitOnError(err error, msg string) {
 	if err != nil {
 		slog.Error(msg, err)
 		fmt.Printf("%v: %+v\n", msg, err)
+		os.Exit(1)
 	}
-	os.Exit(1)
 }
 
 var domains = make(map[string][]string)
