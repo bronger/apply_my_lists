@@ -134,12 +134,65 @@ func applyBlacklist(path string, domainsRaw map[string]map[string]bool) error {
 	return nil
 }
 
+var tldLocks = make(map[string]*sync.RWMutex)
+var tldLocksLock sync.RWMutex
+var whitelist = make(map[string]bool)
+var whitelistLock sync.RWMutex
+
+func applyWhitelistEntry(entry string, domainsRaw map[string]map[string]bool, wg *sync.WaitGroup) {
+	defer wg.Done()
+	tld := getTLD(entry)
+	tldLocksLock.Lock()
+	lock, exists := tldLocks[tld]
+	if !exists {
+		lock = new(sync.RWMutex)
+		tldLocks[tld] = lock
+	}
+	tldLocksLock.Unlock()
+	lock.RLock()
+	subdomains := domainsRaw[tld]
+	lock.RUnlock()
+	var needsOnWhitelist bool
+	for subdomain := range subdomains {
+		if strings.HasSuffix(subdomain, entry) {
+			lock.Lock()
+			delete(domainsRaw[tld], subdomain)
+			lock.Unlock()
+			slog.Debug("Remove domain because of whitelisting", "entry", entry, "domain", subdomain)
+		} else if !needsOnWhitelist && strings.HasSuffix(entry, subdomain) {
+			needsOnWhitelist = true
+			slog.Debug("Add domain to explicit whitelisting", "entry", entry, "shadower", subdomain)
+		}
+	}
+	if needsOnWhitelist {
+		whitelistLock.Lock()
+		whitelist[entry] = true
+		whitelistLock.Unlock()
+	}
+}
+
+func applyWhitelist(path string, domainsRaw map[string]map[string]bool) error {
+	whiteDomains, err := readList(path)
+	if err != nil {
+		return fmt.Errorf("Error while reading whitelist: %w", err)
+	}
+	exitOnError(err, "Error while reading whitelist")
+	var wg sync.WaitGroup
+	for _, domain := range whiteDomains {
+		wg.Add(1)
+		go applyWhitelistEntry(domain, domainsRaw, &wg)
+	}
+	wg.Wait()
+	return nil
+}
+
 func main() {
 	var domains [][]string
 	if domainsRaw, err := readDomains(); err != nil {
 		exitOnError(err, "Could not read domains")
 	} else {
 		applyBlacklist("my_blacklist", domainsRaw)
+		applyWhitelist("my_whitelist", domainsRaw)
 		domains = cookDomains(domainsRaw)
 	}
 	minimal := make(chan string)
@@ -155,7 +208,11 @@ func main() {
 		defer must.Do(w.Flush)
 		for domain := range minimal {
 			numberMinimal++
-			_, err := w.WriteString(fmt.Sprintf("%s\n", domain[1:]))
+			_, err := w.WriteString(fmt.Sprintf("server=/%s/\n", domain[1:]))
+			exitOnError(err, "Error writing to file “servers-blacklist”")
+		}
+		for domain := range whitelist {
+			_, err := w.WriteString(fmt.Sprintf("server=/%s/#\n", domain[1:]))
 			exitOnError(err, "Error writing to file “servers-blacklist”")
 		}
 	}()
