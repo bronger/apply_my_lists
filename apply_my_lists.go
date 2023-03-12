@@ -1,3 +1,10 @@
+/*
+	apply_my_lists creates input for the --servers-file option of dnsmasq.
+
+It takes a list of malicious domains and makes it useful for dnsmasq.  It
+applies black and whitelists along the way.  See README.rst for further
+details.
+*/
 package main
 
 import (
@@ -16,6 +23,7 @@ import (
 	"golang.org/x/exp/slog"
 )
 
+// init sets up logging.
 func init() {
 	opts := slog.HandlerOptions{
 		Level: slog.LevelInfo,
@@ -31,6 +39,9 @@ func init() {
 	slog.SetDefault(logger)
 }
 
+// exitOnError aborts the program if a non-nil error value is passed.  It is
+// supposed to be called in “init”, “main”, and Go routines, where it is
+// impossible to escalate an error to a caller.
 func exitOnError(err error, msg string) {
 	if err != nil {
 		slog.Error(msg, err)
@@ -41,6 +52,10 @@ func exitOnError(err error, msg string) {
 
 const domFilepath = "/etc/hosts-blacklist"
 
+// readList reads the black or whitelist and returns its domain names.  See
+// README.rst for the file format.  As with the rest of this programm, all
+// domain names are prepended with a “.”, so that subdomain matching can be
+// realised with a simple HasSuffix.
 func readList(path string) (entries []string, err error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -65,6 +80,8 @@ func readList(path string) (entries []string, err error) {
 	return
 }
 
+// getTLD extracts the top level domain from the given domain.  It panics if
+// there is none to extract.
 func getTLD(domain string) string {
 	components := strings.Split(domain, ".")
 	length := len(components)
@@ -73,6 +90,11 @@ func getTLD(domain string) string {
 
 var hostRegexp = regexp.MustCompile(`0\.0\.0\.0 (.*)`)
 
+// readDomains reads the large blacklist file and returns a mapping from top
+// level domains to a set of domains that belong to this TLD.  (This may
+// include the TLD itself.)  A “set” is a mapping to bool which is never false.
+// All domain names are prepended with a “.”, so that subdomain matching can be
+// realised with a simple HasSuffix.
 func readDomains() (domainsRaw map[string]map[string]bool, err error) {
 	domainsRaw = make(map[string]map[string]bool)
 	slog.Info("Reading domains")
@@ -103,6 +125,11 @@ func readDomains() (domainsRaw map[string]map[string]bool, err error) {
 	return
 }
 
+// cookDomains simplfies the nested maps into nested slices.  This makes some
+// operations faster.   It is called after the maps have served their purpose
+// to ensure fast lookups and ensure uniqueness.  The domain slices are sorted by
+// length in order to have a reliable breaking condition when looking for
+// subdomains.  (A domain can never be longer than its subdomain.)
 func cookDomains(domainsRaw map[string]map[string]bool) (domains [][]string) {
 	for _, subdomains := range domainsRaw {
 		cookedSDs := maps.Keys(subdomains)
@@ -114,6 +141,11 @@ func cookDomains(domainsRaw map[string]map[string]bool) (domains [][]string) {
 	return
 }
 
+// checkDomain sends domains which are not subdomains of any other blacklisted
+// domain to the “minimal” channel.  This channel is the result of the program.
+// The loop here is the hot loop of the program which has to be as performant
+// as possible.  For instance, we make use of the fact that the items in the
+// subdomains slice become longer and longer.
 func checkDomain(subdomains []string, domain string, minimal chan<- string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	lenDomain := len(domain)
@@ -128,6 +160,8 @@ func checkDomain(subdomains []string, domain string, minimal chan<- string, wg *
 	minimal <- domain
 }
 
+// applyBlacklist adds the entries in the personal blacklist to the set of
+// domains.
 func applyBlacklist(path string, domainsRaw map[string]map[string]bool) error {
 	blackDomains, err := readList(path)
 	if err != nil {
@@ -146,9 +180,16 @@ func applyBlacklist(path string, domainsRaw map[string]map[string]bool) error {
 
 var tldLocks = make(map[string]*sync.RWMutex)
 var tldLocksLock sync.RWMutex
+
+// whitelist holds all domains that need to be whitelisted explicitly because
+// they are subsomains of blacklisted domains.
 var whitelist = make(map[string]bool)
 var whitelistLock sync.RWMutex
 
+// applyWhitelistEntry does the parallisable work for applyWhitelist.  It
+// removed the domain gives as “entry” and all of its subdomains from the
+// blacklist.  Moreover, it adds domains to “whitelist” if they are subdomains
+// of blacklisted domains.
 func applyWhitelistEntry(entry string, domainsRaw map[string]map[string]bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	tld := getTLD(entry)
@@ -181,6 +222,10 @@ func applyWhitelistEntry(entry string, domainsRaw map[string]map[string]bool, wg
 	}
 }
 
+// applyWhitelist removes domains of the personal whitelist (and their
+// subdomains) from the set of domains.  Moreover, it adds whitelisted domains
+// that are subdomains to other blacklisted domains to the “whitelist” map so
+// that they can be whitelisted explicitly in the output.
 func applyWhitelist(path string, domainsRaw map[string]map[string]bool) error {
 	whiteDomains, err := readList(path)
 	if err != nil {
