@@ -1,9 +1,7 @@
 /*
-	apply_my_lists creates input for the --servers-file option of dnsmasq.
-
-It takes a list of malicious domains and makes it useful for dnsmasq.  It
-applies black and whitelists along the way.  See README.rst for further
-details.
+apply_my_lists creates input for the --servers-file option of dnsmasq.  It
+takes a list of malicious domains and makes it useful for dnsmasq.  It applies
+black and whitelists along the way.  See README.rst for further details.
 */
 package main
 
