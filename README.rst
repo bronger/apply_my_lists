@@ -65,3 +65,11 @@ be `example.com`), an additional entry is added to the output of the form::
   server=/good.example.com/#
 
 Note the `#` at the end of the line.
+
+
+Todos
+-----
+
+- If a whitelisted entry does not start with “``*.``”, do not remove
+  blacklisted subdomains.  For instance, I whitelist ``werstreamt.es``,
+  however, ``data-c0c484e9be.werstreamt.es`` should still be blacklisted.
