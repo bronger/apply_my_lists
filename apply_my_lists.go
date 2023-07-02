@@ -25,7 +25,7 @@ import (
 
 // init sets up logging.
 func init() {
-	tbr_logging.Init()
+	tbr_logging.Init(slog.LevelInfo)
 }
 
 const domFilepath = "/etc/hosts-blacklist"
