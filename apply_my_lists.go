@@ -15,6 +15,8 @@ import (
 	"sync"
 
 	pkg_errors "github.com/pkg/errors"
+	tbr_errors "gitlab.com/bronger/tools/errors"
+	tbr_logging "gitlab.com/bronger/tools/logging"
 	"go4.org/must"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
@@ -23,29 +25,7 @@ import (
 
 // init sets up logging.
 func init() {
-	opts := slog.HandlerOptions{
-		Level: slog.LevelInfo,
-		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
-			if a.Key == "time" {
-				return slog.String(a.Key, a.Value.Time().Format("2006/01/02 15:04:05"))
-			}
-			return a
-		},
-	}
-	textHandler := opts.NewTextHandler(os.Stderr)
-	logger := slog.New(textHandler)
-	slog.SetDefault(logger)
-}
-
-// exitOnError aborts the program if a non-nil error value is passed.  It is
-// supposed to be called in “init”, “main”, and Go routines, where it is
-// impossible to escalate an error to a caller.
-func exitOnError(err error, msg string) {
-	if err != nil {
-		slog.Error(msg, err)
-		fmt.Printf("%v: %+v\n", msg, err)
-		os.Exit(1)
-	}
+	tbr_logging.Init()
 }
 
 const domFilepath = "/etc/hosts-blacklist"
@@ -165,7 +145,7 @@ func applyBlacklist(path string, domainsRaw map[string]map[string]bool) error {
 	if err != nil {
 		return fmt.Errorf("Error while reading blacklist: %w", err)
 	}
-	exitOnError(err, "Error while reading blacklist")
+	tbr_errors.ExitOnExpectedError(err, "Error while reading blacklist", 2)
 	for _, domain := range blackDomains {
 		tld := getTLD(domain)
 		if _, exists := domainsRaw[tld]; !exists {
@@ -229,7 +209,7 @@ func applyWhitelist(path string, domainsRaw map[string]map[string]bool) error {
 	if err != nil {
 		return fmt.Errorf("Error while reading whitelist: %w", err)
 	}
-	exitOnError(err, "Error while reading whitelist")
+	tbr_errors.ExitOnExpectedError(err, "Error while reading whitelist", 2)
 	var wg sync.WaitGroup
 	for _, domain := range whiteDomains {
 		wg.Add(1)
@@ -242,7 +222,7 @@ func applyWhitelist(path string, domainsRaw map[string]map[string]bool) error {
 func main() {
 	var domains [][]string
 	if domainsRaw, err := readDomains(); err != nil {
-		exitOnError(err, "Could not read domains")
+		tbr_errors.ExitOnUnexpectedError(err, "Could not read domains")
 	} else {
 		applyBlacklist("/tmp/my_blacklist", domainsRaw)
 		applyWhitelist("/tmp/my_whitelist", domainsRaw)
@@ -255,18 +235,18 @@ func main() {
 	go func() {
 		defer wgCollect.Done()
 		f, err := os.Create("/etc/servers-blacklist")
-		exitOnError(err, "Error creating file “servers-blacklist”")
+		tbr_errors.ExitOnExpectedError(err, "Error creating file “servers-blacklist”", 2)
 		defer must.Close(f)
 		w := bufio.NewWriter(f)
 		defer must.Do(w.Flush)
 		for domain := range minimal {
 			numberMinimal++
 			_, err := w.WriteString(fmt.Sprintf("server=/%s/\n", domain[1:]))
-			exitOnError(err, "Error writing to file “servers-blacklist”")
+			tbr_errors.ExitOnExpectedError(err, "Error writing to file “servers-blacklist”", 2)
 		}
 		for domain := range whitelist {
 			_, err := w.WriteString(fmt.Sprintf("server=/%s/#\n", domain[1:]))
-			exitOnError(err, "Error writing to file “servers-blacklist”")
+			tbr_errors.ExitOnExpectedError(err, "Error writing to file “servers-blacklist”", 2)
 		}
 	}()
 	var wg sync.WaitGroup
