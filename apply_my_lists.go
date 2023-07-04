@@ -222,7 +222,7 @@ func applyWhitelist(path string, domainsRaw map[string]map[string]bool) error {
 func main() {
 	var domains [][]string
 	if domainsRaw, err := readDomains(); err != nil {
-		tbr_errors.ExitOnUnexpectedError(err)
+		tbr_errors.PanicOnError(err)
 	} else {
 		applyBlacklist("/tmp/my_blacklist", domainsRaw)
 		applyWhitelist("/tmp/my_whitelist", domainsRaw)
