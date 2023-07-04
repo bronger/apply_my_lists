@@ -14,7 +14,6 @@ import (
 	"strings"
 	"sync"
 
-	pkg_errors "github.com/pkg/errors"
 	tbr_errors "gitlab.com/bronger/tools/errors"
 	tbr_logging "gitlab.com/bronger/tools/logging"
 	"go4.org/must"
@@ -41,7 +40,7 @@ func readList(path string) (entries []string, err error) {
 			slog.Warn("Could not find file; assumed empty", "path", path)
 			return nil, nil
 		}
-		return nil, pkg_errors.Errorf("Could not open list file “%v”", path)
+		return nil, fmt.Errorf("Could not open list file “%v”", path)
 	}
 	scanner := bufio.NewScanner(f)
 	scanner.Split(bufio.ScanLines)
@@ -53,7 +52,7 @@ func readList(path string) (entries []string, err error) {
 		entries = append(entries, "."+line)
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, pkg_errors.Wrap(err, fmt.Sprintf("Error while reading list file “%v”", path))
+		return nil, fmt.Errorf("Error while reading list file “%v”: %w", path, err)
 	}
 	return
 }
@@ -78,7 +77,7 @@ func readDomains() (domainsRaw map[string]map[string]bool, err error) {
 	slog.Info("Reading domains")
 	f, err := os.Open(domFilepath)
 	if err != nil {
-		return nil, pkg_errors.Errorf("Could not open domains file “%v”", domFilepath)
+		return nil, fmt.Errorf("Could not open domains file “%v”", domFilepath)
 	}
 	scanner := bufio.NewScanner(f)
 	scanner.Split(bufio.ScanLines)
@@ -87,7 +86,7 @@ func readDomains() (domainsRaw map[string]map[string]bool, err error) {
 		line := scanner.Text()
 		domain := "." + hostRegexp.FindStringSubmatch(line)[1]
 		if domain == "." {
-			return nil, pkg_errors.Errorf("Invalid line in domains file: “%s”", line)
+			return nil, fmt.Errorf("Invalid line in domains file: “%s”", line)
 		}
 		numberDomains++
 		tld := getTLD(domain)
@@ -97,7 +96,7 @@ func readDomains() (domainsRaw map[string]map[string]bool, err error) {
 		domainsRaw[tld][domain] = true
 	}
 	if err := scanner.Err(); err != nil {
-		return nil, pkg_errors.Wrap(err, fmt.Sprintf("Error while reading domains file “%v”", domFilepath))
+		return nil, fmt.Errorf("Error while reading domains file “%v”: %w", domFilepath, err)
 	}
 	slog.Info("Finished reading domains", "number", numberDomains, "numberTLDs", len(domainsRaw))
 	return
@@ -220,14 +219,11 @@ func applyWhitelist(path string, domainsRaw map[string]map[string]bool) error {
 }
 
 func main() {
-	var domains [][]string
-	if domainsRaw, err := readDomains(); err != nil {
-		tbr_errors.PanicOnError(err)
-	} else {
-		applyBlacklist("/tmp/my_blacklist", domainsRaw)
-		applyWhitelist("/tmp/my_whitelist", domainsRaw)
-		domains = cookDomains(domainsRaw)
-	}
+	domainsRaw, err := readDomains()
+	tbr_errors.ExitOnExpectedError(err, "Could not read domains", 2)
+	applyBlacklist("/tmp/my_blacklist", domainsRaw)
+	applyWhitelist("/tmp/my_whitelist", domainsRaw)
+	domains := cookDomains(domainsRaw)
 	minimal := make(chan string)
 	var wgCollect sync.WaitGroup
 	var numberMinimal int
