@@ -79,6 +79,7 @@ func readDomains() (domainsRaw map[string]map[string]bool, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("Could not open domains file “%v”", domFilepath)
 	}
+	defer must.Close(f)
 	scanner := bufio.NewScanner(f)
 	scanner.Split(bufio.ScanLines)
 	var numberDomains int
