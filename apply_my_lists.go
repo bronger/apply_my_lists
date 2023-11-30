@@ -9,6 +9,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"regexp"
 	"strings"
@@ -19,12 +20,11 @@ import (
 	"go4.org/must"
 	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
-	"golang.org/x/exp/slog"
 )
 
 // init sets up logging.
 func init() {
-	tbr_logging.Init(slog.LevelInfo)
+	tbr_logging.Init(os.Stderr, slog.LevelInfo)
 }
 
 const domFilepath = "/etc/hosts-blacklist"

@@ -70,6 +70,8 @@ github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81P
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
 gitlab.com/bronger/tools v0.0.0-20230704102824-03f0e403d854 h1:0PX+n8us5LGjseCQqMFdrViIXbKq5St3ulAL5p+HVlc=
 gitlab.com/bronger/tools v0.0.0-20230704102824-03f0e403d854/go.mod h1:jKLeex0jSLLT24E7CaboLU4V89VFql2OwjhRlOA6FIo=
+gitlab.com/bronger/tools v0.0.0-20230825105701-52687403a66d h1:jMYUF3V0VGeqXAiRB0WQhdy/w/n31s/H9XPywoNZNZM=
+gitlab.com/bronger/tools v0.0.0-20230825105701-52687403a66d/go.mod h1:0/yvC3G/j/PcrcYNvhOsbD+0rkYLc1lrdSHFrkGI03k=
 go.opencensus.io v0.21.0/go.mod h1:mSImk1erAIZhrmZN+AvHh14ztQfjbGwt4TtuofqLduU=
 go.opencensus.io v0.22.0/go.mod h1:+kGneAE2xo2IficOXnaByMWTGM9T73dGwxeWcUqIpI8=
 go.opencensus.io v0.22.2/go.mod h1:yxeiOL68Rb0Xd1ddK5vPZ/oVn4vY4Ynel7k9FzqtOIw=
