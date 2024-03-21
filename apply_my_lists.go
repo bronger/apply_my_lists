@@ -160,7 +160,7 @@ var tldLocks = make(map[string]*sync.RWMutex)
 var tldLocksLock sync.RWMutex
 
 // whitelist holds all domains that need to be whitelisted explicitly because
-// they are subsomains of blacklisted domains.
+// they are subdomains of blacklisted domains.
 var whitelist = make(map[string]bool)
 var whitelistLock sync.RWMutex
 
