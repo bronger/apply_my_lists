@@ -7,11 +7,13 @@ package main
 
 import (
 	"bufio"
+	"cmp"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 	"sync"
 
@@ -19,7 +21,6 @@ import (
 	tbr_logging "gitlab.com/bronger/tools/logging"
 	"go4.org/must"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
 // init sets up logging.
@@ -111,8 +112,8 @@ func readDomains() (domainsRaw map[string]map[string]bool, err error) {
 func cookDomains(domainsRaw map[string]map[string]bool) (domains [][]string) {
 	for _, subdomains := range domainsRaw {
 		cookedSDs := maps.Keys(subdomains)
-		slices.SortFunc(cookedSDs, func(a, b string) bool {
-			return len(a) < len(b)
+		slices.SortFunc(cookedSDs, func(a, b string) int {
+			return cmp.Compare(len(a), len(b))
 		})
 		domains = append(domains, cookedSDs)
 	}
