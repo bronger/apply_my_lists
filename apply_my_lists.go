@@ -165,8 +165,8 @@ var whitelist = make(map[string]bool)
 var whitelistLock sync.RWMutex
 
 // applyWhitelistEntry does the parallisable work for applyWhitelist.  It
-// removed the domain gives as “entry” and all of its subdomains from the
-// blacklist.  Moreover, it adds domains to “whitelist” if they are subdomains
+// removes the domain given as “entry” and all of its subdomains from the
+// blacklist.  Moreover, it adds domains to “whitelist” if there are subdomains
 // of blacklisted domains.
 func applyWhitelistEntry(entry string, domainsRaw map[string]*sync.Map, wg *sync.WaitGroup) {
 	defer wg.Done()
