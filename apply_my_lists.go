@@ -20,7 +20,6 @@ import (
 	tbr_errors "gitlab.com/bronger/tools/errors"
 	tbr_logging "gitlab.com/bronger/tools/logging"
 	"go4.org/must"
-	"golang.org/x/exp/maps"
 )
 
 // init sets up logging.
@@ -73,8 +72,8 @@ var hostRegexp = regexp.MustCompile(`0\.0\.0\.0 (.*)`)
 // include the TLD itself.)  A “set” is a mapping to bool which is never false.
 // All domain names are prepended with a “.”, so that subdomain matching can be
 // realised with a simple HasSuffix.
-func readDomains() (domainsRaw map[string]map[string]bool, err error) {
-	domainsRaw = make(map[string]map[string]bool)
+func readDomains() (domainsRaw map[string]*sync.Map, err error) {
+	domainsRaw = make(map[string]*sync.Map)
 	slog.Info("Reading domains")
 	f, err := os.Open(domFilepath)
 	if err != nil {
@@ -93,9 +92,9 @@ func readDomains() (domainsRaw map[string]map[string]bool, err error) {
 		numberDomains++
 		tld := getTLD(domain)
 		if _, exists := domainsRaw[tld]; !exists {
-			domainsRaw[tld] = make(map[string]bool)
+			domainsRaw[tld] = new(sync.Map)
 		}
-		domainsRaw[tld][domain] = true
+		domainsRaw[tld].Store(domain, struct{}{})
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("Error while reading domains file “%v”: %w", domFilepath, err)
@@ -109,9 +108,10 @@ func readDomains() (domainsRaw map[string]map[string]bool, err error) {
 // to ensure fast lookups and ensure uniqueness.  The domain slices are sorted by
 // length in order to have a reliable breaking condition when looking for
 // subdomains.  (A domain can never be longer than its subdomain.)
-func cookDomains(domainsRaw map[string]map[string]bool) (domains [][]string) {
+func cookDomains(domainsRaw map[string]*sync.Map) (domains [][]string) {
 	for _, subdomains := range domainsRaw {
-		cookedSDs := maps.Keys(subdomains)
+		var cookedSDs []string
+		subdomains.Range(func(key, _ any) bool { cookedSDs = append(cookedSDs, key.(string)); return true })
 		slices.SortFunc(cookedSDs, func(a, b string) int {
 			return cmp.Compare(len(a), len(b))
 		})
@@ -141,7 +141,7 @@ func checkDomain(subdomains []string, domain string, minimal chan<- string, wg *
 
 // applyBlacklist adds the entries in the personal blacklist to the set of
 // domains.
-func applyBlacklist(path string, domainsRaw map[string]map[string]bool) error {
+func applyBlacklist(path string, domainsRaw map[string]*sync.Map) error {
 	blackDomains, err := readList(path)
 	if err != nil {
 		return fmt.Errorf("Error while reading blacklist: %w", err)
@@ -150,9 +150,9 @@ func applyBlacklist(path string, domainsRaw map[string]map[string]bool) error {
 	for _, domain := range blackDomains {
 		tld := getTLD(domain)
 		if _, exists := domainsRaw[tld]; !exists {
-			domainsRaw[tld] = make(map[string]bool)
+			domainsRaw[tld] = new(sync.Map)
 		}
-		domainsRaw[tld][domain] = true
+		domainsRaw[tld].Store(domain, struct{}{})
 	}
 	return nil
 }
@@ -169,7 +169,7 @@ var whitelistLock sync.RWMutex
 // removed the domain gives as “entry” and all of its subdomains from the
 // blacklist.  Moreover, it adds domains to “whitelist” if they are subdomains
 // of blacklisted domains.
-func applyWhitelistEntry(entry string, domainsRaw map[string]map[string]bool, wg *sync.WaitGroup) {
+func applyWhitelistEntry(entry string, domainsRaw map[string]*sync.Map, wg *sync.WaitGroup) {
 	defer wg.Done()
 	tld := getTLD(entry)
 	tldLocksLock.Lock()
@@ -182,18 +182,23 @@ func applyWhitelistEntry(entry string, domainsRaw map[string]map[string]bool, wg
 	lock.RLock()
 	subdomains := domainsRaw[tld]
 	lock.RUnlock()
+	if subdomains == nil {
+		return
+	}
 	var needsOnWhitelist bool
-	for subdomain := range subdomains {
+	subdomains.Range(func(key, _ any) bool {
+		subdomain := key.(string)
 		if strings.HasSuffix(subdomain, entry) {
 			lock.Lock()
-			delete(domainsRaw[tld], subdomain)
+			domainsRaw[tld].Delete(subdomain)
 			lock.Unlock()
 			slog.Debug("Remove domain because of whitelisting", "entry", entry, "domain", subdomain)
 		} else if !needsOnWhitelist && strings.HasSuffix(entry, subdomain) {
 			needsOnWhitelist = true
 			slog.Debug("Add domain to explicit whitelisting", "entry", entry, "shadower", subdomain)
 		}
-	}
+		return true
+	})
 	if needsOnWhitelist {
 		whitelistLock.Lock()
 		whitelist[entry] = true
@@ -205,7 +210,7 @@ func applyWhitelistEntry(entry string, domainsRaw map[string]map[string]bool, wg
 // subdomains) from the set of domains.  Moreover, it adds whitelisted domains
 // that are subdomains to other blacklisted domains to the “whitelist” map so
 // that they can be whitelisted explicitly in the output.
-func applyWhitelist(path string, domainsRaw map[string]map[string]bool) error {
+func applyWhitelist(path string, domainsRaw map[string]*sync.Map) error {
 	whiteDomains, err := readList(path)
 	if err != nil {
 		return fmt.Errorf("Error while reading whitelist: %w", err)
