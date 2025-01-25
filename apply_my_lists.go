@@ -146,7 +146,6 @@ func applyBlacklist(path string, domainsRaw map[string]*sync.Map) error {
 	if err != nil {
 		return fmt.Errorf("Error while reading blacklist: %w", err)
 	}
-	tbr_errors.ExitOnExpectedError(err, "Error while reading blacklist", 2)
 	for _, domain := range blackDomains {
 		tld := getTLD(domain)
 		if _, exists := domainsRaw[tld]; !exists {
@@ -215,7 +214,6 @@ func applyWhitelist(path string, domainsRaw map[string]*sync.Map) error {
 	if err != nil {
 		return fmt.Errorf("Error while reading whitelist: %w", err)
 	}
-	tbr_errors.ExitOnExpectedError(err, "Error while reading whitelist", 2)
 	var wg sync.WaitGroup
 	for _, domain := range whiteDomains {
 		wg.Add(1)
@@ -228,8 +226,10 @@ func applyWhitelist(path string, domainsRaw map[string]*sync.Map) error {
 func main() {
 	domainsRaw, err := readDomains()
 	tbr_errors.ExitOnExpectedError(err, "Could not read domains", 2)
-	applyBlacklist("/tmp/my_blacklist", domainsRaw)
-	applyWhitelist("/tmp/my_whitelist", domainsRaw)
+	err = applyBlacklist("/tmp/my_blacklist", domainsRaw)
+	tbr_errors.ExitOnExpectedError(err, "Could not apply blacklist", 2)
+	err = applyWhitelist("/tmp/my_whitelist", domainsRaw)
+	tbr_errors.ExitOnExpectedError(err, "Could not apply whitelist", 2)
 	domains := cookDomains(domainsRaw)
 	minimal := make(chan string)
 	var wgCollect sync.WaitGroup
