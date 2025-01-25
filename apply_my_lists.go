@@ -228,9 +228,12 @@ func main() {
 	tbr_errors.ExitOnExpectedError(err, "Could not read domains", 2)
 	err = applyBlacklist("/tmp/my_blacklist", domainsRaw)
 	tbr_errors.ExitOnExpectedError(err, "Could not apply blacklist", 2)
+	slog.Info("Finished applying blacklist")
 	err = applyWhitelist("/tmp/my_whitelist", domainsRaw)
 	tbr_errors.ExitOnExpectedError(err, "Could not apply whitelist", 2)
+	slog.Info("Finished applying whitelist")
 	domains := cookDomains(domainsRaw)
+	slog.Info("Finished cooking domains")
 	minimal := make(chan string)
 	var wgCollect sync.WaitGroup
 	var numberMinimal int
